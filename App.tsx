@@ -1,6 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Modal,
   PanResponder,
@@ -24,6 +23,7 @@ import { EdgeKey, GameState, GameSettings } from './src/game/types';
 
 const MIN_ROWS = 3;
 const MAX_ROWS = 12;
+const MOVE_INPUT_LOCK_MS = 420;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -117,8 +117,30 @@ function AppScreen() {
   );
   const [boardBounds, setBoardBounds] = useState({ height: 0, width: 0 });
   const [isSetupOpen, setIsSetupOpen] = useState(false);
+  const [isRestartConfirmOpen, setIsRestartConfirmOpen] = useState(false);
+  const [isMoveInputLocked, setIsMoveInputLocked] = useState(false);
   const sheetTranslateY = useRef(new Animated.Value(windowHeight)).current;
   const dragY = useRef(0);
+  const moveLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (moveLockTimeoutRef.current) {
+        clearTimeout(moveLockTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const lockBoardInput = () => {
+    if (moveLockTimeoutRef.current) {
+      clearTimeout(moveLockTimeoutRef.current);
+    }
+    setIsMoveInputLocked(true);
+    moveLockTimeoutRef.current = setTimeout(() => {
+      setIsMoveInputLocked(false);
+      moveLockTimeoutRef.current = null;
+    }, MOVE_INPUT_LOCK_MS);
+  };
 
   const openSheet = () => {
     dragY.current = 0;
@@ -259,17 +281,25 @@ function AppScreen() {
   };
 
   const handleRestart = () => {
-    Alert.alert('Restart game?', 'This will clear the current board and scores.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Restart',
-        style: 'destructive',
-        onPress: () => {
-          closeSetup();
-          setGame(createInitialGame(responsiveSettings));
-        },
-      },
-    ]);
+    if (isSetupOpen) {
+      closeSetup();
+      setTimeout(() => {
+        setIsRestartConfirmOpen(true);
+      }, 220);
+      return;
+    }
+    setIsRestartConfirmOpen(true);
+  };
+
+  const handleConfirmRestart = () => {
+    setIsRestartConfirmOpen(false);
+    closeSetup();
+    setIsMoveInputLocked(false);
+    if (moveLockTimeoutRef.current) {
+      clearTimeout(moveLockTimeoutRef.current);
+      moveLockTimeoutRef.current = null;
+    }
+    setGame(createInitialGame(responsiveSettings));
   };
 
   const handleOpenSetup = () => {
@@ -281,7 +311,16 @@ function AppScreen() {
   };
 
   const handleEdgePress = (edgeKey: EdgeKey) => {
-    setGame((currentGame) => applyMove(currentGame, edgeKey).state);
+    if (isMoveInputLocked) {
+      return;
+    }
+    setGame((currentGame) => {
+      const result = applyMove(currentGame, edgeKey);
+      if (result.wasValidMove) {
+        lockBoardInput();
+      }
+      return result.state;
+    });
   };
 
   const winnerNames =
@@ -317,6 +356,7 @@ function AppScreen() {
         >
           <Board
             game={game}
+            interactionLocked={isMoveInputLocked}
             layoutHeight={boardBounds.height}
             layoutWidth={boardBounds.width}
             onEdgePress={handleEdgePress}
@@ -348,6 +388,30 @@ function AppScreen() {
             >
               <Text style={styles.primaryButtonText}>New Game</Text>
             </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setIsRestartConfirmOpen(false)}
+        transparent
+        visible={isRestartConfirmOpen}
+      >
+        <View style={styles.restartModalBackdrop}>
+          <View style={styles.restartModalCard}>
+            <Text style={styles.restartTitle}>Restart game?</Text>
+            <Text style={styles.restartSubtitle}>This clears the current board and scores.</Text>
+            <View style={styles.restartActionsRow}>
+              <Pressable
+                onPress={() => setIsRestartConfirmOpen(false)}
+                style={styles.restartCancelButton}
+              >
+                <Text style={styles.restartCancelButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable onPress={handleConfirmRestart} style={styles.restartConfirmButton}>
+                <Text style={styles.primaryButtonText}>Restart</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -444,6 +508,58 @@ const styles = StyleSheet.create({
     minHeight: 48,
     justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+  },
+  restartModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.32)',
+    justifyContent: 'center',
+    padding: SPACING.xl,
+  },
+  restartModalCard: {
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: SPACING.sm,
+    maxWidth: 420,
+    padding: SPACING.lg,
+    width: '100%',
+  },
+  restartTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  restartSubtitle: {
+    color: COLORS.mutedText,
+    fontSize: 14,
+  },
+  restartActionsRow: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginTop: SPACING.sm,
+  },
+  restartCancelButton: {
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    paddingVertical: SPACING.md,
+  },
+  restartCancelButtonText: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  restartConfirmButton: {
+    alignItems: 'center',
+    backgroundColor: COLORS.text,
+    borderRadius: 12,
+    flex: 1,
     paddingVertical: SPACING.md,
   },
   winnerTitle: {

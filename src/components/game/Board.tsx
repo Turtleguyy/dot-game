@@ -20,6 +20,7 @@ import { PERIMETER_OWNER_ID, createBoxKey, createEdgeKey, parseEdgeKey } from '.
 interface BoardProps {
   game: GameState;
   onEdgePress: (edgeKey: EdgeKey) => void;
+  interactionLocked?: boolean;
   /** Measured width of the board slot (e.g. from onLayout). Falls back to window width until set. */
   layoutWidth: number;
   /** Measured height of the board slot; when > 0, cell size is capped so the grid fits vertically. */
@@ -143,7 +144,13 @@ function findClosestUnclaimedEdge(
   return bestKey;
 }
 
-export function Board({ game, onEdgePress, layoutWidth, layoutHeight }: BoardProps) {
+export function Board({
+  game,
+  onEdgePress,
+  interactionLocked = false,
+  layoutWidth,
+  layoutHeight,
+}: BoardProps) {
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const widthForMetrics = layoutWidth > 0 ? layoutWidth : windowWidth;
   /** Until the parent measures the flex slot, avoid a one-frame overflow from width-only cell size. */
@@ -171,16 +178,24 @@ export function Board({ game, onEdgePress, layoutWidth, layoutHeight }: BoardPro
         setPreviewEdgeKey(null);
         return;
       }
+      if (interactionLocked) {
+        setPreviewEdgeKey(null);
+        return;
+      }
       const { locationX, locationY } = evt.nativeEvent;
       const key = findClosestUnclaimedEdge(locationX, locationY, game, cellSize, padding);
       setPreviewEdgeKey(key);
     },
-    [cellSize, game, padding],
+    [cellSize, game, interactionLocked, padding],
   );
 
   const handleTouchEnd = useCallback(
     (evt: GestureResponderEvent) => {
       if (game.status !== 'playing') {
+        setPreviewEdgeKey(null);
+        return;
+      }
+      if (interactionLocked) {
         setPreviewEdgeKey(null);
         return;
       }
@@ -191,14 +206,14 @@ export function Board({ game, onEdgePress, layoutWidth, layoutHeight }: BoardPro
         onEdgePress(key);
       }
     },
-    [cellSize, game, onEdgePress, padding],
+    [cellSize, game, interactionLocked, onEdgePress, padding],
   );
 
   useEffect(() => {
-    if (game.status !== 'playing') {
+    if (game.status !== 'playing' || interactionLocked) {
       setPreviewEdgeKey(null);
     }
-  }, [game.status]);
+  }, [game.status, interactionLocked]);
 
   useEffect(() => {
     const edgeKeys = Object.keys(game.edges);
@@ -606,14 +621,14 @@ export function Board({ game, onEdgePress, layoutWidth, layoutHeight }: BoardPro
           </View>
 
           <View
-            pointerEvents={game.status === 'playing' ? 'auto' : 'none'}
+            pointerEvents={game.status === 'playing' && !interactionLocked ? 'auto' : 'none'}
             style={[StyleSheet.absoluteFillObject, styles.touchLayer]}
-            onMoveShouldSetResponder={() => game.status === 'playing'}
+            onMoveShouldSetResponder={() => game.status === 'playing' && !interactionLocked}
             onResponderGrant={updatePreview}
             onResponderMove={updatePreview}
             onResponderRelease={handleTouchEnd}
             onResponderTerminate={() => setPreviewEdgeKey(null)}
-            onStartShouldSetResponder={() => game.status === 'playing'}
+            onStartShouldSetResponder={() => game.status === 'playing' && !interactionLocked}
           />
         </View>
       </View>
