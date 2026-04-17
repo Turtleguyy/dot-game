@@ -46,6 +46,7 @@ export interface GameSettings {
   game: {
     startWithSolidPerimeter: boolean;
   };
+  appearanceMode: 'system' | 'light' | 'dark';
 }
 
 export interface GameState {

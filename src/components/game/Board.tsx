@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Animated,
@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
-import { BOARD, COLORS } from '../../constants/theme';
+import { BOARD, ThemeColors } from '../../constants/theme';
 import {
   getPlayerBaseColor,
   getPlayerGradientColors,
@@ -21,13 +21,14 @@ interface BoardProps {
   game: GameState;
   onEdgePress: (edgeKey: EdgeKey) => void;
   interactionLocked?: boolean;
+  colors: ThemeColors;
   /** Measured width of the board slot (e.g. from onLayout). Falls back to window width until set. */
   layoutWidth: number;
   /** Measured height of the board slot; when > 0, cell size is capped so the grid fits vertically. */
   layoutHeight: number;
 }
 
-function toPastLineColor(color: string): string {
+function toPastLineColor(color: string, fallback: string): string {
   const hex = getPlayerBaseColor(color).replace('#', '');
   const normalizedHex =
     hex.length === 3
@@ -38,7 +39,7 @@ function toPastLineColor(color: string): string {
       : hex;
 
   if (!/^[\da-fA-F]{6}$/.test(normalizedHex)) {
-    return COLORS.inactiveLine;
+    return fallback;
   }
 
   const red = Number.parseInt(normalizedHex.slice(0, 2), 16);
@@ -148,9 +149,11 @@ export function Board({
   game,
   onEdgePress,
   interactionLocked = false,
+  colors,
   layoutWidth,
   layoutHeight,
 }: BoardProps) {
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const widthForMetrics = layoutWidth > 0 ? layoutWidth : windowWidth;
   /** Until the parent measures the flex slot, avoid a one-frame overflow from width-only cell size. */
@@ -264,7 +267,7 @@ export function Board({
 
       const edge = game.edges[edgeKey as EdgeKey];
       const ownerColor =
-        game.players.find((player) => player.id === edge?.ownerPlayerId)?.color ?? COLORS.text;
+        game.players.find((player) => player.id === edge?.ownerPlayerId)?.color ?? colors.text;
       const { col, orientation, row } = parseEdgeKey(edgeKey as EdgeKey);
       if (orientation === 'h') {
         runDotPulse(row, col, ownerColor);
@@ -302,7 +305,7 @@ export function Board({
   }, [game.boxes]);
 
   const activePlayer = game.players[game.currentPlayerIndex];
-  const previewColor = activePlayer?.color ?? COLORS.inactiveLine;
+  const previewColor = activePlayer?.color ?? colors.inactiveLine;
 
   const renderColorFill = (
     color: string,
@@ -318,7 +321,7 @@ export function Board({
         style={styles.fill}
       />
     ) : (
-      <View style={[styles.fill, { backgroundColor: alpha < 1 ? toPastLineColor(color) : color }]} />
+      <View style={[styles.fill, { backgroundColor: alpha < 1 ? toPastLineColor(color, colors.inactiveLine) : color }]} />
     );
 
   return (
@@ -362,7 +365,7 @@ export function Board({
             >
               {renderColorFill(
                 game.players.find((currentPlayer) => currentPlayer.id === box.ownerPlayerId)?.color ??
-                  COLORS.boardBackground,
+                  colors.boardBackground,
                 0.2,
                 { x: 1, y: 1 },
                 { x: 0, y: 0 },
@@ -384,7 +387,7 @@ export function Board({
           const owner = edge ? game.players.find((player) => player.id === edge.ownerPlayerId) : null;
           const isRecent = Boolean(recentPlayerId && recentPlayerId === edge?.ownerPlayerId);
           const lineColor =
-            edge?.ownerPlayerId === PERIMETER_OWNER_ID ? COLORS.text : (owner?.color ?? COLORS.inactiveLine);
+            edge?.ownerPlayerId === PERIMETER_OWNER_ID ? colors.text : (owner?.color ?? colors.inactiveLine);
 
           const edgeProgress =
             edgeAnimations.current[edgeKey] ?? (edgeAnimations.current[edgeKey] = new Animated.Value(1));
@@ -450,7 +453,7 @@ export function Board({
           const owner = edge ? game.players.find((player) => player.id === edge.ownerPlayerId) : null;
           const isRecent = Boolean(recentPlayerId && recentPlayerId === edge?.ownerPlayerId);
           const lineColor =
-            edge?.ownerPlayerId === PERIMETER_OWNER_ID ? COLORS.text : (owner?.color ?? COLORS.inactiveLine);
+            edge?.ownerPlayerId === PERIMETER_OWNER_ID ? colors.text : (owner?.color ?? colors.inactiveLine);
 
           const edgeProgress =
             edgeAnimations.current[edgeKey] ?? (edgeAnimations.current[edgeKey] = new Animated.Value(1));
@@ -590,7 +593,7 @@ export function Board({
                   inputRange: [0, 0.25, 1],
                   outputRange: [0, 0.55, 0],
                 });
-                const pulseColor = dotPulseColors.current[dotKey] ?? COLORS.text;
+                const pulseColor = dotPulseColors.current[dotKey] ?? colors.text;
 
                 return (
                   <View
@@ -636,10 +639,10 @@ export function Board({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   frame: {
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderWidth: 1,
     flex: 1,
     minHeight: 0,
@@ -648,7 +651,7 @@ const styles = StyleSheet.create({
   },
   boardBackground: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
   },
   grid: {
     position: 'relative',
@@ -668,7 +671,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   dot: {
-    backgroundColor: COLORS.dot,
+    backgroundColor: colors.dot,
     borderRadius: 999,
     height: BOARD.dotSize,
     justifyContent: 'center',

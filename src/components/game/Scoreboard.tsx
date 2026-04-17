@@ -1,16 +1,18 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { COLORS, SPACING } from '../../constants/theme';
+import { SPACING, ThemeColors } from '../../constants/theme';
 import { getPlayerGradientColors, isRainbowColor } from '../../constants/playerColors';
 import { GameState } from '../../game/types';
 
 interface ScoreboardProps {
   game: GameState;
+  colors: ThemeColors;
 }
 
-export function Scoreboard({ game }: ScoreboardProps) {
+export function Scoreboard({ game, colors }: ScoreboardProps) {
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.container}>
       {game.players.map((player, index) => {
@@ -25,6 +27,7 @@ export function Scoreboard({ game }: ScoreboardProps) {
             score={player.score}
             isActive={isActive}
             isWinner={isWinner}
+            colors={colors}
           />
         );
       })}
@@ -38,9 +41,11 @@ interface PlayerRowProps {
   score: number;
   isActive: boolean;
   isWinner: boolean;
+  colors: ThemeColors;
 }
 
-function PlayerRow({ playerName, playerColor, score, isActive, isWinner }: PlayerRowProps) {
+function PlayerRow({ playerName, playerColor, score, isActive, isWinner, colors }: PlayerRowProps) {
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const cardScale = useRef(new Animated.Value(1)).current;
   const scoreScale = useRef(new Animated.Value(1)).current;
   const previousScore = useRef(score);
@@ -127,14 +132,14 @@ function PlayerRow({ playerName, playerColor, score, isActive, isWinner }: Playe
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     gap: SPACING.sm,
   },
   playerCard: {
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     flexDirection: 'row',
@@ -143,11 +148,11 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
   },
   activeCard: {
-    borderColor: COLORS.text,
+    borderColor: colors.text,
     borderWidth: 2,
   },
   winnerCard: {
-    backgroundColor: '#ecfccb',
+    backgroundColor: colors.winnerSurface,
   },
   playerMarker: {
     borderRadius: 999,
@@ -158,17 +163,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   playerName: {
-    color: COLORS.text,
+    color: colors.text,
     fontSize: 17,
     fontWeight: '700',
   },
   playerMeta: {
-    color: COLORS.mutedText,
+    color: colors.mutedText,
     fontSize: 14,
     marginTop: 2,
   },
   statusText: {
-    color: COLORS.mutedText,
+    color: colors.mutedText,
     fontSize: 13,
     fontWeight: '700',
     textTransform: 'uppercase',

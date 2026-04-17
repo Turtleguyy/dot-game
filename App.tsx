@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useColorScheme,
   useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -17,7 +18,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { Board } from './src/components/game/Board';
 import { Scoreboard } from './src/components/game/Scoreboard';
 import { SetupForm, createDefaultSettings } from './src/components/game/SetupForm';
-import { BOARD, COLORS, SPACING } from './src/constants/theme';
+import { BOARD, COLORS, SPACING, getThemeColors } from './src/constants/theme';
 import { applyMove, createInitialGame } from './src/game/engine';
 import { EdgeKey, GameState, GameSettings } from './src/game/types';
 
@@ -106,8 +107,13 @@ export default function App() {
 
 function AppScreen() {
   const insets = useSafeAreaInsets();
+  const systemColorScheme = useColorScheme();
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const [settings, setSettings] = useState<GameSettings>(createDefaultSettings);
+  const colors = useMemo(
+    () => getThemeColors(settings.appearanceMode, systemColorScheme ?? null),
+    [settings.appearanceMode, systemColorScheme],
+  );
   const responsiveSettings = useMemo(
     () => resolveSettingsForDevice(settings, windowWidth, windowHeight, insets.top + insets.bottom),
     [insets.bottom, insets.top, settings, windowHeight, windowWidth],
@@ -338,15 +344,16 @@ function AppScreen() {
     <View
       style={[
         styles.safeArea,
+        { backgroundColor: colors.background },
         {
           paddingBottom: insets.bottom,
           paddingTop: insets.top,
         },
       ]}
     >
-      <StatusBar style="dark" />
+      <StatusBar style={settings.appearanceMode === 'dark' || (settings.appearanceMode === 'system' && systemColorScheme === 'dark') ? 'light' : 'dark'} />
       <View style={styles.gameRoot}>
-        <Scoreboard game={game} />
+        <Scoreboard colors={colors} game={game} />
         <View
           style={styles.boardSection}
           onLayout={({ nativeEvent }) => {
@@ -355,6 +362,7 @@ function AppScreen() {
           }}
         >
           <Board
+            colors={colors}
             game={game}
             interactionLocked={isMoveInputLocked}
             layoutHeight={boardBounds.height}
@@ -364,11 +372,17 @@ function AppScreen() {
         </View>
 
         <View style={styles.actionsRow}>
-          <Pressable onPress={handleRestart} style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>Restart</Text>
+          <Pressable
+            onPress={handleRestart}
+            style={[styles.secondaryButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
+            <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Restart</Text>
           </Pressable>
-          <Pressable onPress={handleOpenSetup} style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>Settings</Text>
+          <Pressable
+            onPress={handleOpenSetup}
+            style={[styles.primaryButton, { backgroundColor: colors.primaryAction }]}
+          >
+            <Text style={[styles.primaryButtonText, { color: colors.buttonText }]}>Settings</Text>
           </Pressable>
         </View>
       </View>
@@ -379,14 +393,14 @@ function AppScreen() {
         visible={game.status === 'finished'}
       >
         <View style={styles.winnerModalBackdrop}>
-          <View style={styles.winnerModalCard}>
-            <Text style={styles.winnerTitle}>{winnerLabel}</Text>
-            <Text style={styles.winnerSubtitle}>All boxes are claimed.</Text>
+          <View style={[styles.winnerModalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.winnerTitle, { color: colors.text }]}>{winnerLabel}</Text>
+            <Text style={[styles.winnerSubtitle, { color: colors.mutedText }]}>All boxes are claimed.</Text>
             <Pressable
               onPress={() => setGame(createInitialGame(responsiveSettings))}
-              style={styles.winnerPrimaryButton}
+              style={[styles.winnerPrimaryButton, { backgroundColor: colors.primaryAction }]}
             >
-              <Text style={styles.primaryButtonText}>New Game</Text>
+                <Text style={[styles.primaryButtonText, { color: colors.buttonText }]}>New Game</Text>
             </Pressable>
           </View>
         </View>
@@ -398,18 +412,23 @@ function AppScreen() {
         visible={isRestartConfirmOpen}
       >
         <View style={styles.restartModalBackdrop}>
-          <View style={styles.restartModalCard}>
-            <Text style={styles.restartTitle}>Restart game?</Text>
-            <Text style={styles.restartSubtitle}>This clears the current board and scores.</Text>
+          <View style={[styles.restartModalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.restartTitle, { color: colors.text }]}>Restart game?</Text>
+            <Text style={[styles.restartSubtitle, { color: colors.mutedText }]}>
+              This clears the current board and scores.
+            </Text>
             <View style={styles.restartActionsRow}>
               <Pressable
                 onPress={() => setIsRestartConfirmOpen(false)}
-                style={styles.restartCancelButton}
+                style={[styles.restartCancelButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
               >
-                <Text style={styles.restartCancelButtonText}>Cancel</Text>
+                <Text style={[styles.restartCancelButtonText, { color: colors.text }]}>Cancel</Text>
               </Pressable>
-              <Pressable onPress={handleConfirmRestart} style={styles.restartConfirmButton}>
-                <Text style={styles.primaryButtonText}>Restart</Text>
+              <Pressable
+                onPress={handleConfirmRestart}
+                style={[styles.restartConfirmButton, { backgroundColor: colors.primaryAction }]}
+              >
+                <Text style={[styles.primaryButtonText, { color: colors.buttonText }]}>Restart</Text>
               </Pressable>
             </View>
           </View>
@@ -425,6 +444,7 @@ function AppScreen() {
         <Animated.View
           style={[
             styles.sheet,
+            { backgroundColor: colors.background },
             {
               maxHeight: windowHeight * 0.88,
               paddingBottom: insets.bottom,
@@ -441,7 +461,12 @@ function AppScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <SetupForm settings={settings} onChange={handleSettingsChange} onRestartGame={handleRestart} />
+            <SetupForm
+              colors={colors}
+              settings={settings}
+              onChange={handleSettingsChange}
+              onRestartGame={handleRestart}
+            />
           </ScrollView>
         </Animated.View>
       </Modal>

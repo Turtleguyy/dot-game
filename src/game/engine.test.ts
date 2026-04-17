@@ -5,6 +5,7 @@ import { applyMove, createDefaultPlayers, createEdgeKey, createInitialGame } fro
 
 test('rejects duplicate edge claims', () => {
   const game = createInitialGame({
+    appearanceMode: 'system',
     game: { startWithSolidPerimeter: false },
     grid: { rows: 2, cols: 2 },
     players: createDefaultPlayers(2),
@@ -20,6 +21,7 @@ test('rejects duplicate edge claims', () => {
 
 test('closing a box scores and keeps the turn', () => {
   const startingGame = createInitialGame({
+    appearanceMode: 'system',
     game: { startWithSolidPerimeter: false },
     grid: { rows: 1, cols: 1 },
     players: createDefaultPlayers(2),
@@ -39,6 +41,7 @@ test('closing a box scores and keeps the turn', () => {
 
 test('turn advances when no box is closed', () => {
   const game = createInitialGame({
+    appearanceMode: 'system',
     game: { startWithSolidPerimeter: false },
     grid: { rows: 2, cols: 2 },
     players: createDefaultPlayers(3),
@@ -53,6 +56,7 @@ test('turn advances when no box is closed', () => {
 
 test('tracks each players most recent move independently', () => {
   const game = createInitialGame({
+    appearanceMode: 'system',
     game: { startWithSolidPerimeter: false },
     grid: { rows: 2, cols: 2 },
     players: createDefaultPlayers(2),

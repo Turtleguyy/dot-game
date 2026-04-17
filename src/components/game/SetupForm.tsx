@@ -1,7 +1,8 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { BOARD, COLORS, SPACING } from '../../constants/theme';
+import { BOARD, SPACING, ThemeColors } from '../../constants/theme';
 import { DEFAULT_GRID, PLAYER_COLORS, createDefaultPlayers } from '../../game/engine';
 import { getPlayerGradientColors, isRainbowColor } from '../../constants/playerColors';
 import { GameSettings, PlayerConfig } from '../../game/types';
@@ -10,6 +11,7 @@ interface SetupFormProps {
   settings: GameSettings;
   onChange: (settings: GameSettings) => void;
   onRestartGame: () => void;
+  colors: ThemeColors;
 }
 
 const MIN_PLAYERS = 2;
@@ -63,6 +65,7 @@ function updatePlayers(players: PlayerConfig[], count: number): PlayerConfig[] {
 
 export function createDefaultSettings(): GameSettings {
   return {
+    appearanceMode: 'system',
     game: {
       startWithSolidPerimeter: false,
     },
@@ -71,7 +74,8 @@ export function createDefaultSettings(): GameSettings {
   };
 }
 
-export function SetupForm({ settings, onChange, onRestartGame }: SetupFormProps) {
+export function SetupForm({ settings, onChange, onRestartGame, colors }: SetupFormProps) {
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const playerCount = settings.players.length;
   const innerW = estimateGridInnerWidth(windowWidth);
@@ -124,9 +128,16 @@ export function SetupForm({ settings, onChange, onRestartGame }: SetupFormProps)
     });
   };
 
+  const setAppearanceMode = (appearanceMode: GameSettings['appearanceMode']) => {
+    onChange({
+      ...settings,
+      appearanceMode,
+    });
+  };
+
   return (
     <>
-    <View style={[styles.card, styles.section]}>
+      <View style={[styles.card, styles.section]}>
         <Text style={styles.sectionTitle}>Players</Text>
         <View style={[styles.section, styles.sectionCompact]}>
           <Text style={styles.sectionLabel}>Count</Text>
@@ -167,7 +178,7 @@ export function SetupForm({ settings, onChange, onRestartGame }: SetupFormProps)
                     value={player.name}
                     onChangeText={(name) => updatePlayer(player.id, { name })}
                     placeholder={`Player ${index + 1}`}
-                    placeholderTextColor={COLORS.mutedText}
+                    placeholderTextColor={colors.mutedText}
                     style={styles.nameInput}
                     maxLength={18}
                   />
@@ -207,7 +218,31 @@ export function SetupForm({ settings, onChange, onRestartGame }: SetupFormProps)
             ))}
           </View>
         </View>
-    </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Appearance</Text>
+          <View style={styles.appearanceRow}>
+            {(['system', 'light', 'dark'] as const).map((mode) => {
+              const selected = settings.appearanceMode === mode;
+              return (
+                <Pressable
+                  key={mode}
+                  onPress={() => setAppearanceMode(mode)}
+                  style={({ pressed }) => [
+                    styles.appearanceOption,
+                    selected && styles.appearanceOptionSelected,
+                    pressed && !selected && styles.appearanceOptionPressed,
+                  ]}
+                >
+                  <Text style={[styles.appearanceOptionText, selected && styles.appearanceOptionTextSelected]}>
+                    {mode === 'system' ? 'System' : mode === 'light' ? 'Light' : 'Dark'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      </View>
 
       <View style={[styles.card, styles.section, styles.gameSection]}>
         <Text style={styles.sectionTitle}>Game</Text>
@@ -266,192 +301,211 @@ export function SetupForm({ settings, onChange, onRestartGame }: SetupFormProps)
           <Text style={styles.gameRestartButtonText}>Restart to Apply Game Settings</Text>
         </Pressable>
       </View>
-      </>
+    </>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: SPACING.lg,
-    padding: SPACING.xl,
-  },
-  title: {
-    color: COLORS.text,
-    fontSize: 32,
-    fontWeight: '800',
-  },
-  subtitle: {
-    color: COLORS.mutedText,
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  section: {
-    gap: SPACING.sm,
-  },
-  gameSection: {
-    marginTop: SPACING.sm,
-  },
-  sectionCompact: {
-    alignSelf: 'flex-start',
-  },
-  sectionTitle: {
-    color: COLORS.text,
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  sectionLabel: {
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  gameHint: {
-    color: COLORS.mutedText,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  stepperRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: SPACING.md,
-  },
-  stepperButton: {
-    alignItems: 'center',
-    backgroundColor: COLORS.text,
-    borderRadius: 12,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  stepperButtonDisabled: {
-    backgroundColor: COLORS.border,
-    opacity: 0.85,
-  },
-  stepperButtonPressed: {
-    opacity: 0.88,
-  },
-  stepperText: {
-    color: COLORS.buttonText,
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  stepperTextDisabled: {
-    color: COLORS.mutedText,
-  },
-  stepperValueCompact: {
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '700',
-    paddingHorizontal: SPACING.sm,
-    textAlign: 'center',
-  },
-  playerRow: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: SPACING.md,
-  },
-  playerSetupList: {
-    gap: SPACING.md,
-  },
-  playerConfig: {
-    flex: 1,
-    gap: SPACING.sm,
-  },
-  colorGrid: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  colorOption: {
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    borderWidth: 2,
-    height: 28,
-    overflow: 'hidden',
-    width: 28,
-  },
-  colorFill: {
-    flex: 1,
-  },
-  colorOptionDisabled: {
-    opacity: 0.22,
-  },
-  colorOptionPressed: {
-    opacity: 0.82,
-  },
-  colorOptionSelected: {
-    borderColor: COLORS.text,
-    transform: [{ scale: 1.08 }],
-  },
-  nameInput: {
-    backgroundColor: COLORS.background,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    color: COLORS.text,
-    flex: 1,
-    minHeight: 44,
-    paddingHorizontal: SPACING.md,
-  },
-  toggleRow: {
-    alignItems: 'center',
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-  },
-  toggleRowPressed: {
-    opacity: 0.82,
-  },
-  checkbox: {
-    alignItems: 'center',
-    borderColor: COLORS.border,
-    borderRadius: 7,
-    borderWidth: 2,
-    height: 22,
-    justifyContent: 'center',
-    width: 22,
-  },
-  checkboxChecked: {
-    borderColor: COLORS.text,
-  },
-  checkboxDot: {
-    backgroundColor: COLORS.text,
-    borderRadius: 999,
-    height: 10,
-    width: 10,
-  },
-  toggleTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  toggleTitle: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  toggleSubtitle: {
-    color: COLORS.mutedText,
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  gameRestartButton: {
-    alignItems: 'center',
-    backgroundColor: COLORS.text,
-    borderRadius: 12,
-    justifyContent: 'center',
-    minHeight: 46,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-  },
-  gameRestartButtonText: {
-    color: COLORS.buttonText,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 20,
+      borderWidth: 1,
+      gap: SPACING.md,
+      padding: SPACING.xl,
+    },
+    section: {
+      gap: SPACING.sm,
+    },
+    gameSection: {
+      marginTop: SPACING.sm,
+    },
+    sectionCompact: {
+      alignSelf: 'flex-start',
+    },
+    sectionTitle: {
+      color: colors.text,
+      fontSize: 22,
+      fontWeight: '800',
+    },
+    sectionLabel: {
+      color: colors.text,
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    gameHint: {
+      color: colors.mutedText,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    stepperRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: SPACING.md,
+    },
+    stepperButton: {
+      alignItems: 'center',
+      backgroundColor: colors.primaryAction,
+      borderRadius: 12,
+      height: 40,
+      justifyContent: 'center',
+      width: 40,
+    },
+    stepperButtonDisabled: {
+      backgroundColor: colors.border,
+      opacity: 0.85,
+    },
+    stepperButtonPressed: {
+      opacity: 0.88,
+    },
+    stepperText: {
+      color: colors.buttonText,
+      fontSize: 24,
+      fontWeight: '700',
+    },
+    stepperTextDisabled: {
+      color: colors.mutedText,
+    },
+    stepperValueCompact: {
+      color: colors.text,
+      fontSize: 18,
+      fontWeight: '700',
+      paddingHorizontal: SPACING.sm,
+      textAlign: 'center',
+    },
+    playerRow: {
+      alignItems: 'flex-start',
+      flexDirection: 'row',
+      gap: SPACING.md,
+    },
+    playerSetupList: {
+      gap: SPACING.md,
+    },
+    playerConfig: {
+      flex: 1,
+      gap: SPACING.sm,
+    },
+    colorGrid: {
+      flexDirection: 'row',
+      gap: SPACING.sm,
+    },
+    colorOption: {
+      borderColor: colors.border,
+      borderRadius: 10,
+      borderWidth: 2,
+      height: 28,
+      overflow: 'hidden',
+      width: 28,
+    },
+    colorFill: {
+      flex: 1,
+    },
+    colorOptionDisabled: {
+      opacity: 0.22,
+    },
+    colorOptionPressed: {
+      opacity: 0.82,
+    },
+    colorOptionSelected: {
+      borderColor: colors.text,
+      transform: [{ scale: 1.08 }],
+    },
+    nameInput: {
+      backgroundColor: colors.background,
+      borderColor: colors.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      color: colors.text,
+      flex: 1,
+      minHeight: 44,
+      paddingHorizontal: SPACING.md,
+    },
+    toggleRow: {
+      alignItems: 'center',
+      borderColor: colors.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: SPACING.sm,
+      paddingHorizontal: SPACING.md,
+      paddingVertical: SPACING.sm,
+    },
+    toggleRowPressed: {
+      opacity: 0.82,
+    },
+    checkbox: {
+      alignItems: 'center',
+      borderColor: colors.border,
+      borderRadius: 7,
+      borderWidth: 2,
+      height: 22,
+      justifyContent: 'center',
+      width: 22,
+    },
+    checkboxChecked: {
+      borderColor: colors.text,
+    },
+    checkboxDot: {
+      backgroundColor: colors.text,
+      borderRadius: 999,
+      height: 10,
+      width: 10,
+    },
+    toggleTextWrap: {
+      flex: 1,
+      gap: 2,
+    },
+    toggleTitle: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    toggleSubtitle: {
+      color: colors.mutedText,
+      fontSize: 13,
+      fontWeight: '500',
+    },
+    gameRestartButton: {
+      alignItems: 'center',
+      backgroundColor: colors.primaryAction,
+      borderRadius: 12,
+      justifyContent: 'center',
+      minHeight: 46,
+      paddingHorizontal: SPACING.md,
+      paddingVertical: SPACING.sm,
+    },
+    gameRestartButtonText: {
+      color: colors.buttonText,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    appearanceRow: {
+      flexDirection: 'row',
+      gap: SPACING.sm,
+    },
+    appearanceOption: {
+      alignItems: 'center',
+      backgroundColor: colors.background,
+      borderColor: colors.border,
+      borderRadius: 10,
+      borderWidth: 1,
+      flex: 1,
+      paddingVertical: SPACING.sm,
+    },
+    appearanceOptionSelected: {
+      backgroundColor: colors.primaryAction,
+      borderColor: colors.primaryAction,
+    },
+    appearanceOptionPressed: {
+      opacity: 0.85,
+    },
+    appearanceOptionText: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    appearanceOptionTextSelected: {
+      color: colors.buttonText,
+    },
+  });
