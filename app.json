@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "dot-game",
+    "name": "Dot Game",
     "slug": "dot-game",
+    "description": "A modern Dots and Boxes game with pass-and-play multiplayer, smooth animations, and customizable settings.",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
